@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
+import 'package:logging/logging.dart';
 import 'package:noa/main.dart';
 import 'package:noa/models/app_logic_model.dart' as app;
 import 'package:noa/noa_api.dart';
@@ -13,6 +14,8 @@ import 'package:noa/widgets/bottom_nav_bar.dart';
 import 'package:noa/widgets/top_title_bar.dart';
 import 'package:saver_gallery/saver_gallery.dart';
 import 'package:uuid/uuid.dart';
+
+final _log = Logger("NoaPage");
 
 class NoaPage extends ConsumerStatefulWidget {
   const NoaPage({super.key});
@@ -32,8 +35,16 @@ class _NoaPageState extends ConsumerState<NoaPage> {
 
   @override
   Widget build(BuildContext context) {
+    final currentState = ref.watch(app.model).state.current;
+    final isConnected = currentState == app.State.connected;
+
+    _log.info("NoaPage build — state: $currentState, connected: $isConnected");
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      switch (ref.watch(app.model).state.current) {
+      switch (currentState) {
+        case app.State.scanning:
+        case app.State.found:
+        case app.State.connect:
         case app.State.stopLuaApp:
         case app.State.checkFirmwareVersion:
         case app.State.uploadMainLua:
@@ -41,6 +52,7 @@ class _NoaPageState extends ConsumerState<NoaPage> {
         case app.State.uploadStateLua:
         case app.State.triggerUpdate:
         case app.State.updateFirmware:
+          _log.info("Redirecting to PairingPage for state: $currentState");
           switchPage(context, const PairingPage());
           break;
         default:
@@ -62,7 +74,36 @@ class _NoaPageState extends ConsumerState<NoaPage> {
 
     return Scaffold(
       backgroundColor: colorWhite,
-      appBar: topTitleBar(context, 'CHAT', false, false),
+      appBar: AppBar(
+        toolbarHeight: 84,
+        automaticallyImplyLeading: false,
+        backgroundColor: colorWhite,
+        scrolledUnderElevation: 0,
+        title: const Text('CHAT', style: textStyleDarkTitle),
+        centerTitle: false,
+        titleSpacing: 42,
+        actions: [
+          if (!isConnected)
+            Container(
+              margin: const EdgeInsets.only(right: 42),
+              child: GestureDetector(
+                onTap: () {
+                  _log.info("Pair button tapped — current state: $currentState");
+                  ref.read(app.model).triggerEvent(app.Event.buttonPressed);
+                },
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: colorDark,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Text('Pair', style: textStyleWhite),
+                ),
+              ),
+            ),
+        ],
+      ),
       body: PageStorage(
         bucket: globalPageStorageBucket,
         child: ListView.builder(

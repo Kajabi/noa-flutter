@@ -164,6 +164,7 @@ class AppLogicModel extends ChangeNotifier {
   }
 
   bool _customServer = false;
+  bool _scriptsJustUploaded = false;
   bool get customServer => _customServer;
   set customServer(bool value) {
     _customServer = value;
@@ -499,23 +500,14 @@ class AppLogicModel extends ChangeNotifier {
               _apiHeader = savedData.getString('apiHeader') ?? "";
               _customServer = savedData.getBool('customServer') ?? false;
               _promptless = savedData.getBool('promptless') ?? false;
-              _alwaysOnListening = savedData.getBool('alwaysOnListening') ?? false;
+              _alwaysOnListening = savedData.getBool('alwaysOnListening') ?? true;
 
-              // Custom server mode: skip Noa login entirely
-              if (_customServer && _apiEndpoint.isNotEmpty) {
-                noaUser = NoaUser(email: "Custom Server");
-                triggerEvent(Event.done);
-                return;
-              }
-
-              // Check if the auto token is loaded and if Frame is paired
-              if (await _getUserAuthToken() != null &&
-                  await _getPairedDevice() != null) {
-                noaUser = await NoaApi.getUser((await _getUserAuthToken())!);
-                triggerEvent(Event.done);
-                return;
-              }
-              throw ("Not logged in or paired");
+              // Skip auth — this app uses Deepgram STT directly, no Brilliant API needed
+              _log.info("Init: skipping auth, setting dummy user");
+              noaUser = NoaUser(email: "Noa User");
+              _log.info("Init: triggering Event.done → should go to State.disconnected");
+              triggerEvent(Event.done);
+              return;
             } catch (error) {
               _log.info(error);
               triggerEvent(Event.error);
@@ -590,6 +582,15 @@ class AppLogicModel extends ChangeNotifier {
 
         case State.stopLuaApp:
           state.onEntry(() async {
+            // If scripts were just uploaded this session, the Lua app is
+            // already running on the Frame after reboot — skip straight
+            // to connected instead of re-uploading.
+            if (_scriptsJustUploaded) {
+              _scriptsJustUploaded = false;
+              _log.info("Scripts already current from this session, skipping to connected");
+              triggerEvent(Event.deviceUpToDate);
+              return;
+            }
             try {
               await _connectedDevice!.sendBreakSignal();
               triggerEvent(Event.done);
@@ -600,6 +601,7 @@ class AppLogicModel extends ChangeNotifier {
             }
           });
           state.changeOn(Event.done, State.checkFirmwareVersion);
+          state.changeOn(Event.deviceUpToDate, State.connected);
           state.changeOn(Event.error, State.requiresRepair);
           break;
 
@@ -643,14 +645,21 @@ class AppLogicModel extends ChangeNotifier {
                   notifyListeners();
                 }
               }
-              await _connectedDevice!.sendResetSignal();
+              // Reboot the Frame so firmware properly initializes all
+              // subsystems (camera, audio, etc.) and auto-runs main.lua.
+              // Do NOT call disconnect() — that breaks the iOS BLE bond.
               _setPairedDevice(_connectedDevice!.device.remoteId.toString());
+              _scriptsJustUploaded = true;
+              await _connectedDevice!.sendResetSignal();
+              _log.info("Scripts uploaded, reset signal sent. Going to connected to await reboot.");
+              triggerEvent(Event.done);
             } catch (error) {
               await _connectedDevice?.disconnect();
               _log.warning("Error uploading lua scripts. $error.");
               triggerEvent(Event.error);
             }
           });
+          state.changeOn(Event.done, State.connected);
           state.changeOn(Event.error, State.disconnected);
           break;
 
@@ -725,6 +734,16 @@ class AppLogicModel extends ChangeNotifier {
               }
             });
             _connectionStream?.onError((_) {});
+
+            // If scripts were just uploaded, the Frame is rebooting.
+            // Only set up the disconnect listener — don't send messages.
+            // When the Frame reboots, the listener fires deviceDisconnected
+            // → disconnected → reconnect → recheckFirmwareVersion → connected (for real).
+            if (_scriptsJustUploaded) {
+              _log.info("Frame rebooting after script upload, waiting for disconnect...");
+              return;
+            }
+
             _luaResponseStream?.cancel();
             _luaResponseStream =
                 _connectedDevice!.stringResponse.listen((event) async {});
@@ -872,8 +891,10 @@ class AppLogicModel extends ChangeNotifier {
           break;
 
         case State.disconnected:
+          _log.info("Entered State.disconnected");
           frameState = FrameState.disconnected;
           state.onEntry(() async {
+            _log.info("disconnected onEntry: attempting reconnect to paired device");
             _connectionStream?.cancel();
             _connectionStream =
                 _connectedDevice?.connectionState.listen((event) async {
@@ -896,12 +917,21 @@ class AppLogicModel extends ChangeNotifier {
             }
           });
           state.changeOn(Event.deviceConnected, State.recheckFirmwareVersion);
+          state.changeOn(Event.buttonPressed, State.scanning);
           state.changeOn(Event.logoutPressed, State.logout);
           state.changeOn(Event.deletePressed, State.deleteAccount);
           break;
 
         case State.recheckFirmwareVersion:
           state.onEntry(() async {
+            // Skip recheck if scripts were just uploaded (Frame is rebooting)
+            if (_scriptsJustUploaded) {
+              _scriptsJustUploaded = false;
+              _log.info("Scripts just uploaded, skipping recheck → connected");
+              triggerEvent(Event.done);
+              return;
+            }
+
             _dataResponseStream?.cancel();
             Timer? listenerTimeout;
 
@@ -936,6 +966,7 @@ class AppLogicModel extends ChangeNotifier {
             
           });
 
+          state.changeOn(Event.done, State.connected);
           state.changeOn(Event.deviceUpToDate, State.checkScriptVersion);
           state.changeOn(Event.deviceNeedsUpdate, State.stopLuaApp);
           state.changeOn(Event.error, State.stopLuaApp);

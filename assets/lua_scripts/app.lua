@@ -192,14 +192,16 @@ while true do
     end
     if listening then
         transfer_audio_data()
-        if not photo_taken and (num_exposures > 10 or not listening) then
+        if not always_on and not photo_taken and (num_exposures > 10 or not listening) then
             print("CAPTURE")
             camera.capture_and_send(capture_settings)
             photo_taken = true
             capture_settings = nil
         end
     end
-    last_auto_exp = run_auto_exp(last_auto_exp, 0.1)
+    if not always_on then
+        last_auto_exp = run_auto_exp(last_auto_exp, 0.1)
+    end
     frame.sleep(0.001)
     collectgarbage("collect")
 end
