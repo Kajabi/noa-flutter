@@ -4,7 +4,7 @@ local rich_text = require('rich_text.min')
 local camera = require('camera.min')
 local code = require('code.min')
 
-SCRIPT_VERSION = "v1.1.0"
+SCRIPT_VERSION = "v1.2.0"
 
 local graphics = Graphics.new()
 
@@ -109,6 +109,7 @@ local function handle_messages()
         elseif code_byte == ALWAYS_ON_STOP_FLAG then
             print("ALWAYS ON STOP")
             always_on = false
+            listening = false
             frame.microphone.stop()
         elseif code_byte >= TEXT_SPEED_BASE and code_byte <= TEXT_SPEED_BASE + 4 then
             local speed = code_byte - TEXT_SPEED_BASE + 1
@@ -198,7 +199,7 @@ while true do
     end
     if listening then
         transfer_audio_data()
-        if not always_on and not photo_taken and (num_exposures > 10 or not listening) then
+        if not always_on and not photo_taken and capture_settings ~= nil and (num_exposures > 10 or not listening) then
             print("CAPTURE")
             camera.capture_and_send(capture_settings)
             photo_taken = true
