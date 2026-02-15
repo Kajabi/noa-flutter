@@ -18,7 +18,7 @@ class SignIn {
           AppleIDAuthorizationScopes.email,
         ],
         webAuthenticationOptions: WebAuthenticationOptions(
-          clientId: 'xyz.brilliant.noaflutter',
+          clientId: 'com.kajabi.noa',
           redirectUri: Uri.parse('https://api.brilliant.xyz/noa/login/apple'),
         ),
       );

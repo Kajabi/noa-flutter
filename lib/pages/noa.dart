@@ -71,9 +71,27 @@ class _NoaPageState extends ConsumerState<NoaPage> {
           itemCount: ref.watch(app.model).noaMessages.length,
           itemBuilder: (context, index) {
             TextStyle style = textStyleLight;
-            if (ref.watch(app.model).noaMessages[index].from == NoaRole.noa) {
+            final msg = ref.watch(app.model).noaMessages[index];
+            if (msg.from == NoaRole.noa) {
               style = textStyleDark;
             }
+
+            // Color speaker labels in always-on transcription
+            final speakerColors = {
+              'S1:': const Color(0xFF555555),
+              'S2:': const Color(0xFFD4A017),
+              'S3:': const Color(0xFF2E8B57),
+              'S4:': const Color(0xFF4682B4),
+              'S5:': colorPink,
+            };
+            Color? speakerColor;
+            for (final prefix in speakerColors.keys) {
+              if (msg.message.startsWith(prefix)) {
+                speakerColor = speakerColors[prefix];
+                break;
+              }
+            }
+
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -107,12 +125,26 @@ class _NoaPageState extends ConsumerState<NoaPage> {
                   ),
                 Container(
                   margin: const EdgeInsets.only(top: 10, left: 65, right: 42),
-                  child: Text(
-                    ref.watch(app.model).noaMessages[index].message,
-                    style: style,
-                  ),
+                  child: speakerColor != null
+                      ? RichText(
+                          text: TextSpan(
+                            children: [
+                              TextSpan(
+                                text: msg.message.substring(0, 3),
+                                style: style.copyWith(
+                                    color: speakerColor,
+                                    fontWeight: FontWeight.w700),
+                              ),
+                              TextSpan(
+                                text: msg.message.substring(3),
+                                style: style,
+                              ),
+                            ],
+                          ),
+                        )
+                      : Text(msg.message, style: style),
                 ),
-                if (ref.watch(app.model).noaMessages[index].image != null)
+                if (msg.image != null)
                   Container(
                     decoration: BoxDecoration(
                       border: Border.all(
@@ -129,15 +161,14 @@ class _NoaPageState extends ConsumerState<NoaPage> {
                         child: GestureDetector(
                           onLongPress: () async {
                             await SaverGallery.saveImage(
-                                ref.watch(app.model).noaMessages[index].image!,
+                                msg.image!,
                                 name: const Uuid().v1(),
                                 androidExistNotSave: false);
                             if (context.mounted) {
                               showToast("Saved to photos", context);
                             }
                           },
-                          child: Image.memory(
-                              ref.watch(app.model).noaMessages[index].image!),
+                          child: Image.memory(msg.image!),
                         ),
                       ),
                     ),

@@ -38,6 +38,8 @@ class AccountPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isCustomServer = ref.watch(app.model.select((v) => v.customServer));
+
     return Scaffold(
       backgroundColor: colorWhite,
       appBar: topTitleBar(context, 'ACCOUNT', false, true),
@@ -47,10 +49,15 @@ class AccountPage extends ConsumerWidget {
             child: Column(
               children: [
                 _accountInfoText(
-                    "Signed In As", ref.watch(app.model).noaUser.email),
-                _accountInfoText("Credits Used",
-                    "${ref.watch(app.model).noaUser.creditsUsed} / ${ref.watch(app.model).noaUser.maxCredits}"),
-                _accountInfoText("Plan", ref.watch(app.model).noaUser.plan)
+                    isCustomServer ? "Mode" : "Signed In As",
+                    isCustomServer ? "Custom Server" : ref.watch(app.model).noaUser.email),
+                if (!isCustomServer)
+                  _accountInfoText("Credits Used",
+                      "${ref.watch(app.model).noaUser.creditsUsed} / ${ref.watch(app.model).noaUser.maxCredits}"),
+                if (!isCustomServer)
+                  _accountInfoText("Plan", ref.watch(app.model).noaUser.plan),
+                if (isCustomServer)
+                  _accountInfoText("Endpoint", ref.watch(app.model).apiEndpoint),
               ],
             ),
           ),
@@ -67,7 +74,9 @@ class AccountPage extends ConsumerWidget {
                           "https://www.youtube.com/playlist?list=PLfbaC5GRVJJgSPdN-KWndTld35tihu1Ic"));
                     } catch (_) {}
                   }),
-                  _linkedFooterText("Logout", false, () async {
+                  _linkedFooterText(
+                      isCustomServer ? "Reset Configuration" : "Logout",
+                      false, () async {
                     ref.read(app.model).triggerEvent(app.Event.logoutPressed);
                     if (context.mounted) {
                       Navigator.pop(context);
@@ -92,14 +101,14 @@ class AccountPage extends ConsumerWidget {
                   _linkedFooterText("Regulatory", false, () async {
                     switchPage(context, const RegulatoryPage());
                   }),
-                  _linkedFooterText("Delete Account", true, () {
-                    // TODO ask user to confirm
-                    ref.read(app.model).triggerEvent(app.Event.deletePressed);
-                    if (context.mounted) {
-                      Navigator.pop(context);
-                      switchPage(context, const SplashPage());
-                    }
-                  }),
+                  if (!isCustomServer)
+                    _linkedFooterText("Delete Account", true, () {
+                      ref.read(app.model).triggerEvent(app.Event.deletePressed);
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                        switchPage(context, const SplashPage());
+                      }
+                    }),
                 ],
               ),
             ),

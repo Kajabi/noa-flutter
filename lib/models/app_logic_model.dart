@@ -13,6 +13,8 @@ import 'package:frame_msg/frame_msg.dart';
 import 'package:logging/logging.dart';
 import 'package:noa/bluetooth.dart';
 import 'package:noa/noa_api.dart';
+import 'package:noa/stt_api.dart';
+import 'package:noa/util/audio_buffer.dart';
 import 'package:noa/util/tx_rich_text.dart';
 import 'package:noa/util/state_machine.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -21,7 +23,7 @@ final _log = Logger("App logic");
 
 // NOTE Update these when changing firmware or scripts
 const _firmwareVersion = "v25.080.0838";
-const _scriptVersion = "v1.0.8";
+const _scriptVersion = "v1.1.0";
 
 const checkFwVersionFlag = 0x16;
 const checkScriptVersionFlag = 0x17;
@@ -34,6 +36,8 @@ const stopTapFlag = 0x13;
 const startListeningFlag = 0x11;
 const stopListeningFlag = 0x12;
 const loopAheadFlag = 0x14;
+const alwaysOnFlag = 0x25;
+const alwaysOnStopFlag = 0x26;
 
 enum State {
   getUserSettings,
@@ -85,6 +89,7 @@ enum FrameState {
   listening,
   onit,
   printReply,
+  alwaysOnListening,
 }
 
 enum TuneLength {
@@ -223,6 +228,21 @@ class AppLogicModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool _alwaysOnListening = false;
+  bool get alwaysOnListening => _alwaysOnListening;
+  set alwaysOnListening(bool value) {
+    _alwaysOnListening = value;
+    SharedPreferences.getInstance()
+        .then((sp) => sp.setBool("alwaysOnListening", value));
+    // Stop/start always-on mode when toggled while connected
+    if (!value && frameState == FrameState.alwaysOnListening) {
+      _stopAlwaysOnMode();
+    } else if (value && frameState == FrameState.tapMeIn && _connectedDevice != null) {
+      _startAlwaysOnMode();
+    }
+    notifyListeners();
+  }
+
   // Private state variables
   StreamSubscription? _scanStream;
   StreamSubscription? _connectionStream;
@@ -232,6 +252,8 @@ class AppLogicModel extends ChangeNotifier {
   BrilliantDevice? _connectedDevice;
   BrilliantDfuDevice? _updatableDevice;
   StreamSubscription<int>? _tapSubs;
+  StreamSubscription? _alwaysOnAudioStream;
+  AudioBuffer? _audioBuffer;
   bool _cancelled = false;
   // List<int> _audioData = List.empty(growable: true);
   // List<int> _imageData = List.empty(growable: true);
@@ -357,6 +379,104 @@ class AppLogicModel extends ChangeNotifier {
     }();
   }
 
+  // Speaker color mapping for diarization display
+  static const List<int> speakerPaletteOffsets = [1, 8, 10, 13, 4];
+  static const List<String> speakerLabels = ['S1', 'S2', 'S3', 'S4', 'S5'];
+
+  void _startAlwaysOnMode() async {
+    _log.info("Starting always-on listening mode");
+    frameState = FrameState.alwaysOnListening;
+
+    // Create audio buffer with callback
+    _audioBuffer = AudioBuffer(
+      onChunkReady: (wavData) async {
+        _log.info("Audio chunk ready: ${wavData.length} bytes");
+        try {
+          final result = await SttApi.transcribe(wavData);
+          if (result.transcript.isEmpty) return;
+
+          if (result.speakers.isNotEmpty) {
+            // Display with speaker diarization colors
+            for (final segment in result.speakers) {
+              final colorIdx = segment.speaker % speakerPaletteOffsets.length;
+              final label = speakerLabels[colorIdx];
+              await _connectedDevice?.sendMessage(
+                  messageResponseFlag,
+                  TxRichText(
+                    text: "$label: ${segment.text}",
+                    paletteOffset: speakerPaletteOffsets[colorIdx],
+                  ).pack());
+
+              noaMessages.add(NoaMessage(
+                message: "$label: ${segment.text}",
+                from: NoaRole.noa,
+                time: DateTime.now(),
+              ));
+            }
+          } else {
+            // No diarization, show plain transcript
+            await _connectedDevice?.sendMessage(
+                messageResponseFlag,
+                TxRichText(text: result.transcript).pack());
+
+            noaMessages.add(NoaMessage(
+              message: result.transcript,
+              from: NoaRole.noa,
+              time: DateTime.now(),
+            ));
+          }
+          notifyListeners();
+        } catch (error) {
+          _log.warning("Always-on transcription error: $error");
+        }
+      },
+    );
+
+    // Set up audio stream listener before sending flag to Frame
+    _alwaysOnAudioStream?.cancel();
+    _alwaysOnAudioStream =
+        _connectedDevice!.dataResponse.listen((event) {
+      final flag = event[0];
+      if (flag == 0x05 || flag == 0x06) {
+        // Audio data (non-final or final)
+        _audioBuffer?.addData(Uint8List.fromList(event.sublist(1)));
+        if (flag == 0x06) {
+          // Final audio chunk - flush buffer
+          _audioBuffer?.flush();
+        }
+      }
+    });
+
+    // Now send always-on flag to Frame to start mic
+    _connectedDevice!
+        .sendMessage(singleDataFlag, TxCode(value: alwaysOnFlag).pack());
+
+    // Display "Listening..." on Frame
+    await _connectedDevice!.sendMessage(
+        messageResponseFlag,
+        TxRichText(text: "listening...", emoji: "\u{F0010}").pack());
+
+    notifyListeners();
+  }
+
+  void _stopAlwaysOnMode() {
+    _log.info("Stopping always-on listening mode");
+    _alwaysOnAudioStream?.cancel();
+    _alwaysOnAudioStream = null;
+    _audioBuffer?.clear();
+    _audioBuffer = null;
+
+    // Send stop flag to Frame
+    _connectedDevice?.sendMessage(
+        singleDataFlag, TxCode(value: alwaysOnStopFlag).pack());
+
+    frameState = FrameState.tapMeIn;
+    _connectedDevice?.sendMessage(messageResponseFlag,
+        TxRichText(text: "tap me in", emoji: "\u{F0000}").pack());
+
+    notifyListeners();
+  }
+
   void triggerEvent(Event event) {
     state.event(event);
 
@@ -379,6 +499,14 @@ class AppLogicModel extends ChangeNotifier {
               _apiHeader = savedData.getString('apiHeader') ?? "";
               _customServer = savedData.getBool('customServer') ?? false;
               _promptless = savedData.getBool('promptless') ?? false;
+              _alwaysOnListening = savedData.getBool('alwaysOnListening') ?? false;
+
+              // Custom server mode: skip Noa login entirely
+              if (_customServer && _apiEndpoint.isNotEmpty) {
+                noaUser = NoaUser(email: "Custom Server");
+                triggerEvent(Event.done);
+                return;
+              }
 
               // Check if the auto token is loaded and if Frame is paired
               if (await _getUserAuthToken() != null &&
@@ -399,8 +527,13 @@ class AppLogicModel extends ChangeNotifier {
 
         case State.waitForLogin:
           state.changeOn(Event.loggedIn, State.scanning,
-              transitionTask: () async =>
-                  noaUser = await NoaApi.getUser((await _getUserAuthToken())!));
+              transitionTask: () async {
+                if (_customServer) {
+                  noaUser = NoaUser(email: "Custom Server");
+                } else {
+                  noaUser = await NoaApi.getUser((await _getUserAuthToken())!);
+                }
+              });
           break;
 
         case State.scanning:
@@ -669,7 +802,9 @@ class AppLogicModel extends ChangeNotifier {
                   }
                   if (_cancelled) return;
                   noaMessages += newMessages;
-                  noaUser = await NoaApi.getUser((await _getUserAuthToken())!);
+                  if (!_customServer) {
+                    noaUser = await NoaApi.getUser((await _getUserAuthToken())!);
+                  }
 
                   if (_cancelled) return;
                   triggerEvent(Event.noaResponse);
@@ -705,6 +840,10 @@ class AppLogicModel extends ChangeNotifier {
                 frameState = FrameState.tapMeIn;
             }
 
+            // Start always-on mode if enabled
+            if (_alwaysOnListening) {
+              _startAlwaysOnMode();
+            }
           });
           state.changeOn(Event.noaResponse, State.sendResponseToDevice);
           state.changeOn(Event.deviceDisconnected, State.disconnected);
@@ -840,9 +979,11 @@ class AppLogicModel extends ChangeNotifier {
         case State.logout:
           state.onEntry(() async {
             try {
+              if (!_customServer) {
+                await NoaApi.signOut((await _getUserAuthToken())!);
+              }
               await SharedPreferences.getInstance().then((sp) => sp.clear());
               await _connectedDevice?.disconnect();
-              await NoaApi.signOut((await _getUserAuthToken())!);
               noaMessages.clear();
               triggerEvent(Event.done);
             } catch (error) {
@@ -857,7 +998,9 @@ class AppLogicModel extends ChangeNotifier {
           state.onEntry(() async {
             try {
               await _connectedDevice?.disconnect();
-              await NoaApi.deleteUser((await _getUserAuthToken())!);
+              if (!_customServer) {
+                await NoaApi.deleteUser((await _getUserAuthToken())!);
+              }
               await SharedPreferences.getInstance().then((sp) => sp.clear());
               noaMessages.clear();
               triggerEvent(Event.done);
@@ -882,6 +1025,8 @@ class AppLogicModel extends ChangeNotifier {
     _luaResponseStream?.cancel();
     _dataResponseStream?.cancel();
     _tapSubs?.cancel();
+    _alwaysOnAudioStream?.cancel();
+    _audioBuffer?.clear();
 
     super.dispose();
   }

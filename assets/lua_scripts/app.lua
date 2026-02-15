@@ -4,7 +4,7 @@ local rich_text = require('rich_text.min')
 local camera = require('camera.min')
 local code = require('code.min')
 
-SCRIPT_VERSION = "v1.0.8"
+SCRIPT_VERSION = "v1.1.0"
 
 local graphics = Graphics.new()
 
@@ -19,6 +19,7 @@ local photo_taken = false
 local capture_settings = nil
 local num_exposures = 0
 local looking_ahead = true
+local always_on = false
 
 -- Phone to Frame flags
 MESSAGE_RESPONSE_FLAG = 0x20
@@ -31,6 +32,8 @@ LISTENING_FLAG = 0x11
 STOP_LISTENING_FLAG = 0x12
 STOP_TAP_FLAG = 0x13
 LOOK_AHEAD_FLAG = 0x14
+ALWAYS_ON_FLAG = 0x25
+ALWAYS_ON_STOP_FLAG = 0x26
 
 -- Frame to Phone flags
 AUDIO_DATA_NON_FINAL_MSG = 0x05
@@ -96,6 +99,15 @@ local function handle_messages()
         elseif code_byte == HOLD_RESPONSE_FLAG then
             print("HOLD FOR RESPONSE")
             -- Do nothing, just keep awake
+        elseif code_byte == ALWAYS_ON_FLAG then
+            print("ALWAYS ON START")
+            always_on = true
+            listening = true
+            frame.microphone.start {}
+        elseif code_byte == ALWAYS_ON_STOP_FLAG then
+            print("ALWAYS ON STOP")
+            always_on = false
+            frame.microphone.stop()
         end
         data.app_data[DATA_MSG] = nil
     end
@@ -111,7 +123,7 @@ local function handle_messages()
     -- To print response on Frame
     if (data.app_data[MESSAGE_RESPONSE_FLAG] ~= nil and data.app_data[MESSAGE_RESPONSE_FLAG].string ~= nil) and looking_ahead then
         graphics:clear()
-        graphics:append_text(data.app_data[MESSAGE_RESPONSE_FLAG].string, data.app_data[MESSAGE_RESPONSE_FLAG].emoji)
+        graphics:append_text(data.app_data[MESSAGE_RESPONSE_FLAG].string, data.app_data[MESSAGE_RESPONSE_FLAG].emoji, data.app_data[MESSAGE_RESPONSE_FLAG].color)
         data.app_data[MESSAGE_RESPONSE_FLAG] = nil
     end
 end
@@ -126,7 +138,11 @@ local function transfer_audio_data()
         if audio_data == nil then
             print("STOPPED LISTENING")
             pcall(send_data, string.char(AUDIO_DATA_FINAL_MSG))
-            listening = false
+            if always_on then
+                frame.microphone.start {}
+            else
+                listening = false
+            end
             break
         elseif audio_data ~= '' then
             pcall(send_data, string.char(AUDIO_DATA_NON_FINAL_MSG) .. audio_data)
@@ -158,7 +174,7 @@ while true do
         graphics:clear()
         graphics:append_text("", "\u{F000D}")
     end
-    if frame.time.utc() - last_msg_time > 15 and not sleep_started and not listening then
+    if frame.time.utc() - last_msg_time > 15 and not sleep_started and not listening and not always_on then
         sleep_started = true
         graphics:clear()
         graphics:append_text("", "\u{F0008}")
@@ -167,7 +183,7 @@ while true do
         graphics:print()
         last_print_time = frame.time.utc()
     end
-    if frame.time.utc() - last_msg_time > 18 and sleep_started then
+    if frame.time.utc() - last_msg_time > 18 and sleep_started and not always_on then
         frame.microphone.stop()
         frame.display.text(' ',1,1)
         frame.display.show()

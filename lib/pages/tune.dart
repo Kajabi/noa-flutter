@@ -254,6 +254,11 @@ Widget _checkBox(WidgetRef ref, int index) {
       value = ref.watch(app.model.select((v) => v.customServer));
       disableOption = "Noa Server";
       enableOption = "Custom Server";
+    case 3:
+      title = "Always-On Listening";
+      value = ref.watch(app.model.select((v) => v.alwaysOnListening));
+      disableOption = "Off";
+      enableOption = "On";
   }
   if (!willShow) {
     return Container();
@@ -291,6 +296,9 @@ Widget _checkBox(WidgetRef ref, int index) {
                   case 2:
                     ref.read(app.model.select((v) => v.customServer = value));
                     break;
+                  case 3:
+                    ref.read(app.model.select((v) => v.alwaysOnListening = value));
+                    break;
                 }
               },
             ),
@@ -327,6 +335,7 @@ class TunePage extends ConsumerWidget {
               _inputBox(ref, 2),
               _inputBox(ref, 1),
               _checkBox(ref, 1),
+              _checkBox(ref, 3),
             ],
           ),
         ),

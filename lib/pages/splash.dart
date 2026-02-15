@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
 import 'package:noa/models/app_logic_model.dart' as app;
-import 'package:noa/pages/login.dart';
+import 'package:noa/pages/setup.dart';
 import 'package:noa/pages/noa.dart';
 import 'package:noa/style.dart';
 import 'package:noa/util/switch_page.dart';
@@ -21,7 +21,7 @@ class SplashPage extends ConsumerWidget {
             switchPage(context, const NoaPage());
             break;
           default:
-            switchPage(context, const LoginPage());
+            switchPage(context, const SetupPage());
         }
       });
     });
