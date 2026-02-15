@@ -38,6 +38,7 @@ const stopListeningFlag = 0x12;
 const loopAheadFlag = 0x14;
 const alwaysOnFlag = 0x25;
 const alwaysOnStopFlag = 0x26;
+const textSpeedBaseFlag = 0x30;
 
 enum State {
   getUserSettings,
@@ -244,6 +245,23 @@ class AppLogicModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  int _chunkDurationSeconds = 5;
+  int get chunkDurationSeconds => _chunkDurationSeconds;
+  set chunkDurationSeconds(int value) {
+    _chunkDurationSeconds = value;
+    SharedPreferences.getInstance()
+        .then((sp) => sp.setInt("chunkDurationSeconds", value));
+    // Update audio buffer threshold in-place (no restart needed)
+    _audioBuffer?.updateChunkDuration(value);
+    // Send updated text speed to Frame
+    if (_connectedDevice != null) {
+      int charsPerFrame = 6 - value;
+      _connectedDevice!.sendMessage(singleDataFlag,
+          TxCode(value: textSpeedBaseFlag + charsPerFrame - 1).pack());
+    }
+    notifyListeners();
+  }
+
   // Private state variables
   StreamSubscription? _scanStream;
   StreamSubscription? _connectionStream;
@@ -390,6 +408,7 @@ class AppLogicModel extends ChangeNotifier {
 
     // Create audio buffer with callback
     _audioBuffer = AudioBuffer(
+      chunkDurationSeconds: _chunkDurationSeconds,
       onChunkReady: (wavData) async {
         _log.info("Audio chunk ready: ${wavData.length} bytes");
         try {
@@ -478,6 +497,26 @@ class AppLogicModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Attempt to reconnect to the previously paired Frame device.
+  /// Falls back to scanning if reconnect fails.
+  void reconnectToPairedDevice() async {
+    if (state.current != State.disconnected) return;
+    _log.info("Force reconnect: attempting to reconnect to paired device");
+    try {
+      final pairedId = await _getPairedDevice();
+      if (pairedId != null) {
+        _connectedDevice = await BrilliantBluetooth.reconnect(pairedId);
+        if (_connectedDevice?.state == BrilliantConnectionState.connected) {
+          triggerEvent(Event.deviceConnected);
+          return;
+        }
+      }
+    } catch (e) {
+      _log.warning("Force reconnect failed: $e, falling back to scan");
+    }
+    triggerEvent(Event.buttonPressed);
+  }
+
   void triggerEvent(Event event) {
     state.event(event);
 
@@ -501,6 +540,7 @@ class AppLogicModel extends ChangeNotifier {
               _customServer = savedData.getBool('customServer') ?? false;
               _promptless = savedData.getBool('promptless') ?? false;
               _alwaysOnListening = savedData.getBool('alwaysOnListening') ?? true;
+              _chunkDurationSeconds = savedData.getInt('chunkDurationSeconds') ?? 5;
 
               // Skip auth — this app uses Deepgram STT directly, no Brilliant API needed
               _log.info("Init: skipping auth, setting dummy user");
@@ -858,6 +898,11 @@ class AppLogicModel extends ChangeNotifier {
                 TxRichText(text: "tap me in", emoji: "\u{F0000}").pack());
                 frameState = FrameState.tapMeIn;
             }
+
+            // Send text rendering speed to Frame
+            int charsPerFrame = 6 - _chunkDurationSeconds; // 1s→5 chars, 5s→1 char
+            _connectedDevice!.sendMessage(singleDataFlag,
+                TxCode(value: textSpeedBaseFlag + charsPerFrame - 1).pack());
 
             // Start always-on mode if enabled
             if (_alwaysOnListening) {

@@ -88,8 +88,8 @@ class _NoaPageState extends ConsumerState<NoaPage> {
               margin: const EdgeInsets.only(right: 42),
               child: GestureDetector(
                 onTap: () {
-                  _log.info("Pair button tapped — current state: $currentState");
-                  ref.read(app.model).triggerEvent(app.Event.buttonPressed);
+                  _log.info("Connect button tapped — current state: $currentState");
+                  ref.read(app.model).reconnectToPairedDevice();
                 },
                 child: Container(
                   padding:
@@ -98,7 +98,7 @@ class _NoaPageState extends ConsumerState<NoaPage> {
                     color: colorDark,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Text('Pair', style: textStyleWhite),
+                  child: const Text('Connect', style: textStyleWhite),
                 ),
               ),
             ),

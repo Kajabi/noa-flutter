@@ -34,6 +34,8 @@ STOP_TAP_FLAG = 0x13
 LOOK_AHEAD_FLAG = 0x14
 ALWAYS_ON_FLAG = 0x25
 ALWAYS_ON_STOP_FLAG = 0x26
+-- Text speed flags: 0x30=1 char/frame, 0x31=2, 0x32=3, 0x33=4, 0x34=5
+TEXT_SPEED_BASE = 0x30
 
 -- Frame to Phone flags
 AUDIO_DATA_NON_FINAL_MSG = 0x05
@@ -108,6 +110,10 @@ local function handle_messages()
             print("ALWAYS ON STOP")
             always_on = false
             frame.microphone.stop()
+        elseif code_byte >= TEXT_SPEED_BASE and code_byte <= TEXT_SPEED_BASE + 4 then
+            local speed = code_byte - TEXT_SPEED_BASE + 1
+            graphics.chars_per_frame = speed
+            print("TEXT SPEED: " .. speed .. " chars/frame")
         end
         data.app_data[DATA_MSG] = nil
     end

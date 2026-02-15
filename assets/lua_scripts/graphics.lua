@@ -21,6 +21,10 @@ function Graphics:clear()
     self.__current_index = 1
     self.__ending_index = 1
     self.__done_function = (function() end)()
+    -- Preserve chars_per_frame across clears (set via BLE)
+    if self.chars_per_frame == nil then
+        self.chars_per_frame = 1
+    end
 end
 
 function Graphics:append_text(data, emoji, color)
@@ -97,5 +101,5 @@ function Graphics:print()
         return
     end
 
-    self.__current_index = self.__current_index + 1
+    self.__current_index = self.__current_index + (self.chars_per_frame or 1)
 end

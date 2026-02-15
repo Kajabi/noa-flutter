@@ -11,6 +11,17 @@ class TunePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final alwaysOn = ref.watch(app.model.select((v) => v.alwaysOnListening));
+    final chunkDuration =
+        ref.watch(app.model.select((v) => v.chunkDurationSeconds));
+
+    String speedLabel;
+    if (chunkDuration <= 2) {
+      speedLabel = "Fastest";
+    } else if (chunkDuration <= 3) {
+      speedLabel = "Fast";
+    } else {
+      speedLabel = "Normal";
+    }
 
     return Scaffold(
       backgroundColor: colorWhite,
@@ -50,6 +61,40 @@ class TunePage extends ConsumerWidget {
                         padding: EdgeInsets.only(right: 8, left: 8),
                         child: Text("On", style: textStyleDark),
                       ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 20, bottom: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: Text(
+                        "Transcription Speed — $speedLabel (${chunkDuration}s)",
+                        style: textStyleLightSubHeading),
+                  ),
+                  Row(
+                    children: [
+                      const Text("Faster", style: textStyleDark),
+                      Expanded(
+                        child: Slider(
+                          value: chunkDuration.toDouble(),
+                          min: 1,
+                          max: 5,
+                          divisions: 4,
+                          activeColor: colorDark,
+                          inactiveColor: colorLight,
+                          onChanged: (value) {
+                            ref.read(app.model).chunkDurationSeconds =
+                                value.round();
+                          },
+                        ),
+                      ),
+                      const Text("Accurate", style: textStyleDark),
                     ],
                   ),
                 ],
