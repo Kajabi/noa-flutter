@@ -130,15 +130,11 @@ local function handle_messages()
     -- To print response on Frame
     if (data.app_data[MESSAGE_RESPONSE_FLAG] ~= nil and data.app_data[MESSAGE_RESPONSE_FLAG].string ~= nil) and looking_ahead then
         if always_on then
-            -- Teleprompter: append without clearing, add space separator
-            local new_text = data.app_data[MESSAGE_RESPONSE_FLAG].string
-            if #graphics.__text > 0 then
-                new_text = "\n" .. new_text
-            end
-            graphics:append_text(new_text,
+            -- Teleprompter: shift previous text up, start new segment on next line
+            graphics:start_new_segment()
+            graphics:append_text(data.app_data[MESSAGE_RESPONSE_FLAG].string,
                 data.app_data[MESSAGE_RESPONSE_FLAG].emoji,
                 data.app_data[MESSAGE_RESPONSE_FLAG].color)
-            graphics:trim_old_text()
         else
             graphics:clear()
             graphics:append_text(data.app_data[MESSAGE_RESPONSE_FLAG].string, data.app_data[MESSAGE_RESPONSE_FLAG].emoji, data.app_data[MESSAGE_RESPONSE_FLAG].color)
