@@ -340,62 +340,7 @@ class AppLogicModel extends ChangeNotifier {
     //   time: DateTime.now().add(const Duration(seconds: 5)),
     // ));
 
-    () async {
-      noaMessages.add(NoaMessage(
-        message: "Hey I'm Noa! Let's show you around",
-        from: NoaRole.noa,
-        time: DateTime.now(),
-        exclude: true,
-      ));
-
-      noaMessages.add(NoaMessage(
-          message: "Tap the side of your Frame to wake me up",
-          from: NoaRole.noa,
-          time: DateTime.now(),
-          image: (await rootBundle.load('assets/images/tutorial/wake_up.png'))
-              .buffer
-              .asUint8List(),
-          exclude: true));
-
-      noaMessages.add(NoaMessage(
-          message: "Tap again and ask me anything",
-          from: NoaRole.noa,
-          time: DateTime.now(),
-          image: (await rootBundle.load('assets/images/tutorial/tap_start.png'))
-              .buffer
-              .asUint8List(),
-          exclude: true));
-
-      noaMessages.add(NoaMessage(
-          message: "...and then a third time to finish",
-          from: NoaRole.noa,
-          time: DateTime.now(),
-          image:
-              (await rootBundle.load('assets/images/tutorial/tap_finish.png'))
-                  .buffer
-                  .asUint8List(),
-          exclude: true));
-
-      noaMessages.add(NoaMessage(
-          message:
-              "The response just takes a few seconds. Tap again to ask a follow up question",
-          from: NoaRole.noa,
-          time: DateTime.now(),
-          image: (await rootBundle
-                  .load('assets/images/tutorial/tap_follow_up.png'))
-              .buffer
-              .asUint8List(),
-          exclude: true));
-
-      noaMessages.add(NoaMessage(
-          message: "The follow up just takes a few more seconds",
-          from: NoaRole.noa,
-          time: DateTime.now(),
-          image: (await rootBundle.load('assets/images/tutorial/response.png'))
-              .buffer
-              .asUint8List(),
-          exclude: true));
-    }();
+    // Welcome text is now shown as an empty state on the chat page
   }
 
   // Speaker color mapping for diarization display
