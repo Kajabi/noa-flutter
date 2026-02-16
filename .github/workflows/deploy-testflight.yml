@@ -109,21 +109,31 @@ jobs:
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
+          set -euo pipefail
+
+          echo "=== Pre-flight checks ==="
+          echo "PROFILE_UUID: $PROFILE_UUID"
+          echo "APPLE_TEAM_ID: $APPLE_TEAM_ID"
+          echo "Workspace exists: $(test -d ios/Runner.xcworkspace && echo YES || echo NO)"
+          echo "Working directory: $(pwd)"
+          ls -la ios/Runner.xcworkspace/ || true
+
+          echo "=== Starting xcodebuild archive ==="
           xcodebuild archive \
             -workspace ios/Runner.xcworkspace \
             -scheme Runner \
             -configuration Release \
-            -archivePath $RUNNER_TEMP/Runner.xcarchive \
+            -archivePath "$RUNNER_TEMP/Runner.xcarchive" \
             -destination "generic/platform=iOS" \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution" \
             PROVISIONING_PROFILE_SPECIFIER="" \
             PROVISIONING_PROFILE="$PROFILE_UUID" \
-            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" 2>&1 | tee $RUNNER_TEMP/xcodebuild.log | xcpretty || {
-              echo "--- FULL XCODEBUILD ERROR LOG ---"
-              grep -A5 "error:" $RUNNER_TEMP/xcodebuild.log || tail -50 $RUNNER_TEMP/xcodebuild.log
-              exit 1
-            }
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID"
+
+          echo "=== Archive step finished ==="
+          echo "Archive exists: $(test -d "$RUNNER_TEMP/Runner.xcarchive" && echo YES || echo NO)"
+          ls -la "$RUNNER_TEMP/Runner.xcarchive" || true
 
       - name: Generate ExportOptions.plist
         env:
@@ -152,9 +162,9 @@ jobs:
       - name: Export IPA
         run: |
           xcodebuild -exportArchive \
-            -archivePath $RUNNER_TEMP/Runner.xcarchive \
-            -exportOptionsPlist $RUNNER_TEMP/ExportOptions.plist \
-            -exportPath $RUNNER_TEMP/export | xcpretty
+            -archivePath "$RUNNER_TEMP/Runner.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/export"
 
       - name: Upload to TestFlight
         env:
