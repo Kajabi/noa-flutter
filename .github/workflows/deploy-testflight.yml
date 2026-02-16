@@ -119,7 +119,11 @@ jobs:
             CODE_SIGN_IDENTITY="Apple Distribution" \
             PROVISIONING_PROFILE_SPECIFIER="" \
             PROVISIONING_PROFILE="$PROFILE_UUID" \
-            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" | xcpretty
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" 2>&1 | tee $RUNNER_TEMP/xcodebuild.log | xcpretty || {
+              echo "--- FULL XCODEBUILD ERROR LOG ---"
+              grep -A5 "error:" $RUNNER_TEMP/xcodebuild.log || tail -50 $RUNNER_TEMP/xcodebuild.log
+              exit 1
+            }
 
       - name: Generate ExportOptions.plist
         env:
