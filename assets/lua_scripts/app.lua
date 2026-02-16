@@ -1,10 +1,10 @@
-require("graphics.min")
+require("graphics")
 local data = require('data.min')
 local rich_text = require('rich_text.min')
 local camera = require('camera.min')
 local code = require('code.min')
 
-SCRIPT_VERSION = "v1.2.0"
+SCRIPT_VERSION = "v1.3.0"
 
 local graphics = Graphics.new()
 
@@ -129,8 +129,20 @@ local function handle_messages()
     end
     -- To print response on Frame
     if (data.app_data[MESSAGE_RESPONSE_FLAG] ~= nil and data.app_data[MESSAGE_RESPONSE_FLAG].string ~= nil) and looking_ahead then
-        graphics:clear()
-        graphics:append_text(data.app_data[MESSAGE_RESPONSE_FLAG].string, data.app_data[MESSAGE_RESPONSE_FLAG].emoji, data.app_data[MESSAGE_RESPONSE_FLAG].color)
+        if always_on then
+            -- Teleprompter: append without clearing, add space separator
+            local new_text = data.app_data[MESSAGE_RESPONSE_FLAG].string
+            if #graphics.__text > 0 then
+                new_text = " " .. new_text
+            end
+            graphics:append_text(new_text,
+                data.app_data[MESSAGE_RESPONSE_FLAG].emoji,
+                data.app_data[MESSAGE_RESPONSE_FLAG].color)
+            graphics:trim_old_text()
+        else
+            graphics:clear()
+            graphics:append_text(data.app_data[MESSAGE_RESPONSE_FLAG].string, data.app_data[MESSAGE_RESPONSE_FLAG].emoji, data.app_data[MESSAGE_RESPONSE_FLAG].color)
+        end
         data.app_data[MESSAGE_RESPONSE_FLAG] = nil
     end
 end

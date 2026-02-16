@@ -36,6 +36,18 @@ function Graphics:append_text(data, emoji, color)
 end
 
 
+function Graphics:trim_old_text()
+    -- Trim text that has already scrolled off screen
+    -- Only trim when buffer has grown past ~200 chars
+    if self.__starting_index > 200 then
+        local trim_to = self.__starting_index - 1
+        self.__text = self.__text:sub(trim_to + 1)
+        self.__starting_index = self.__starting_index - trim_to
+        self.__current_index = self.__current_index - trim_to
+        self.__ending_index = self.__ending_index - trim_to
+    end
+end
+
 function Graphics:on_complete(func)
     self.__done_function = func
 end
