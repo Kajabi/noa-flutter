@@ -400,7 +400,6 @@ class AppLogicModel extends ChangeNotifier {
 
   // Speaker color mapping for diarization display
   static const List<int> speakerPaletteOffsets = [1, 8, 10, 13, 4];
-  static const List<String> speakerLabels = ['S1', 'S2', 'S3', 'S4', 'S5'];
 
   void _startAlwaysOnMode() async {
     _log.info("Starting always-on listening mode");
@@ -419,18 +418,18 @@ class AppLogicModel extends ChangeNotifier {
             // Display with speaker diarization colors
             for (final segment in result.speakers) {
               final colorIdx = segment.speaker % speakerPaletteOffsets.length;
-              final label = speakerLabels[colorIdx];
               await _connectedDevice?.sendMessage(
                   messageResponseFlag,
                   TxRichText(
-                    text: "$label: ${segment.text}",
+                    text: segment.text,
                     paletteOffset: speakerPaletteOffsets[colorIdx],
                   ).pack());
 
               noaMessages.add(NoaMessage(
-                message: "$label: ${segment.text}",
+                message: segment.text,
                 from: NoaRole.noa,
                 time: DateTime.now(),
+                speaker: segment.speaker,
               ));
             }
           } else {

@@ -117,20 +117,18 @@ class _NoaPageState extends ConsumerState<NoaPage> {
               style = textStyleDark;
             }
 
-            // Color speaker labels in always-on transcription
-            final speakerColors = {
-              'S1:': const Color(0xFF555555),
-              'S2:': const Color(0xFFD4A017),
-              'S3:': const Color(0xFF2E8B57),
-              'S4:': const Color(0xFF4682B4),
-              'S5:': colorPink,
-            };
+            // Color by speaker for diarized transcription
+            const speakerColors = [
+              Color(0xFF555555),
+              Color(0xFFD4A017),
+              Color(0xFF2E8B57),
+              Color(0xFF4682B4),
+              colorPink,
+            ];
             Color? speakerColor;
-            for (final prefix in speakerColors.keys) {
-              if (msg.message.startsWith(prefix)) {
-                speakerColor = speakerColors[prefix];
-                break;
-              }
+            if (msg.speaker != null) {
+              speakerColor =
+                  speakerColors[msg.speaker! % speakerColors.length];
             }
 
             return Column(
@@ -166,24 +164,12 @@ class _NoaPageState extends ConsumerState<NoaPage> {
                   ),
                 Container(
                   margin: const EdgeInsets.only(top: 10, left: 65, right: 42),
-                  child: speakerColor != null
-                      ? RichText(
-                          text: TextSpan(
-                            children: [
-                              TextSpan(
-                                text: msg.message.substring(0, 3),
-                                style: style.copyWith(
-                                    color: speakerColor,
-                                    fontWeight: FontWeight.w700),
-                              ),
-                              TextSpan(
-                                text: msg.message.substring(3),
-                                style: style,
-                              ),
-                            ],
-                          ),
-                        )
-                      : Text(msg.message, style: style),
+                  child: Text(
+                    msg.message,
+                    style: speakerColor != null
+                        ? style.copyWith(color: speakerColor)
+                        : style,
+                  ),
                 ),
                 if (msg.image != null)
                   Container(

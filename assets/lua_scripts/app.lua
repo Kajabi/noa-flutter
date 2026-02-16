@@ -133,7 +133,7 @@ local function handle_messages()
             -- Teleprompter: append without clearing, add space separator
             local new_text = data.app_data[MESSAGE_RESPONSE_FLAG].string
             if #graphics.__text > 0 then
-                new_text = " " .. new_text
+                new_text = "\n" .. new_text
             end
             graphics:append_text(new_text,
                 data.app_data[MESSAGE_RESPONSE_FLAG].emoji,

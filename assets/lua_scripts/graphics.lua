@@ -28,7 +28,7 @@ function Graphics:clear()
 end
 
 function Graphics:append_text(data, emoji, color)
-    self.__text = self.__text .. string.gsub(data, "\n+", " ")
+    self.__text = self.__text .. string.gsub(data, "\n\n+", "\n")
     self.__emoji = emoji
     if color ~= nil then
         self.__color = color
@@ -85,7 +85,8 @@ function Graphics.__print_layout(last_last_line, last_line, this_line, emoji, ra
 end
 
 function Graphics:print()
-    if self.__text:sub(self.__starting_index, self.__starting_index) == ' ' then
+    local ch = self.__text:sub(self.__starting_index, self.__starting_index)
+    if ch == ' ' or ch == '\n' then
         self.__starting_index = self.__starting_index + 1
     end
 
@@ -96,14 +97,29 @@ function Graphics:print()
         self.__starting_index = self.__ending_index
     end
 
-    for i = self.__starting_index + 22, self.__starting_index, -1 do
-        if self.__text:sub(i, i) == ' ' or self.__text:sub(i, i) == '' then
-            self.__ending_index = i
+    -- Check for newline within current line range (forced line break)
+    local newline_pos = nil
+    local scan_end = math.min(self.__starting_index + 22, #self.__text)
+    for i = self.__starting_index, scan_end do
+        if self.__text:sub(i, i) == '\n' then
+            newline_pos = i
             break
         end
     end
 
+    if newline_pos then
+        self.__ending_index = newline_pos
+    else
+        for i = self.__starting_index + 22, self.__starting_index, -1 do
+            if self.__text:sub(i, i) == ' ' or self.__text:sub(i, i) == '' then
+                self.__ending_index = i
+                break
+            end
+        end
+    end
+
     self.__this_line = self.__text:sub(self.__starting_index, self.__current_index)
+    self.__this_line = self.__this_line:gsub("\n", "")
 
     self.__print_layout(self.__last_last_line, self.__last_line, self.__this_line, self.__emoji, self.__rad, self.__color)
 

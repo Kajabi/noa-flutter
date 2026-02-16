@@ -72,6 +72,7 @@ class NoaMessage {
   Uint8List? image;
   bool exclude = false;
   bool topicChanged = false;
+  int? speaker;
 
   NoaMessage({
     required this.message,
@@ -80,6 +81,7 @@ class NoaMessage {
     this.image,
     this.exclude = false,
     this.topicChanged = false,
+    this.speaker,
   });
 
   Map<String, dynamic> toJson() {
