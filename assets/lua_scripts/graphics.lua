@@ -42,10 +42,12 @@ function Graphics:start_new_segment()
         self.__last_line = self.__this_line
     end
     -- Reset text buffer for new content
+    -- current_index must be 0 (not 1) to prevent print() from
+    -- immediately triggering a spurious line shift (1 >= 1 == true)
     self.__text = ""
     self.__this_line = ""
     self.__starting_index = 1
-    self.__current_index = 1
+    self.__current_index = 0
     self.__ending_index = 1
 end
 

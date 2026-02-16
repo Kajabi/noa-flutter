@@ -106,7 +106,28 @@ class _NoaPageState extends ConsumerState<NoaPage> {
       ),
       body: PageStorage(
         bucket: globalPageStorageBucket,
-        child: ListView.builder(
+        child: ref.watch(app.model).noaMessages.isEmpty
+            ? Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 42, vertical: 40),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Welcome to Noa', style: textStyleDarkTitle),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Noa is an always-on listening assistant for your Frame glasses.\n\n'
+                      'To get started:\n'
+                      '1. Connect your Frame using the button above\n'
+                      '2. Enable always-on listening in Settings\n'
+                      '3. Just talk \u2014 your conversations will appear here as a live transcript\n\n'
+                      'Speakers are color-coded automatically. '
+                      'You can also tap the Frame for a single query with photo capture.',
+                      style: textStyleDark.copyWith(height: 1.5),
+                    ),
+                  ],
+                ),
+              )
+            : ListView.builder(
           key: const PageStorageKey<String>('noaPage'),
           controller: _scrollController,
           itemCount: ref.watch(app.model).noaMessages.length,
