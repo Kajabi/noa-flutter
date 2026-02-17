@@ -110,18 +110,6 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           set -euo pipefail
-
-          echo "=== Pre-flight checks ==="
-          echo "PROFILE_UUID: $PROFILE_UUID"
-          echo "APPLE_TEAM_ID: $APPLE_TEAM_ID"
-          echo "Workspace exists: $(test -d ios/Runner.xcworkspace && echo YES || echo NO)"
-          echo "Working directory: $(pwd)"
-          ls -la ios/Runner.xcworkspace/ || true
-
-          echo "=== Listing signing identities ==="
-          security find-identity -v -p codesigning "$RUNNER_TEMP/app-signing.keychain-db" || true
-
-          echo "=== Starting xcodebuild archive ==="
           xcodebuild archive \
             -workspace ios/Runner.xcworkspace \
             -scheme Runner \
@@ -134,10 +122,6 @@ jobs:
             PROVISIONING_PROFILE_SPECIFIER="" \
             PROVISIONING_PROFILE="$PROFILE_UUID" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID"
-
-          echo "=== Archive step finished ==="
-          echo "Archive exists: $(test -d "$RUNNER_TEMP/Runner.xcarchive" && echo YES || echo NO)"
-          ls -la "$RUNNER_TEMP/Runner.xcarchive" || true
 
       - name: Generate ExportOptions.plist
         env:
