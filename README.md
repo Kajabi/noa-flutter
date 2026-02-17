@@ -1,21 +1,23 @@
-# Noa for iOS and Android – A Flutter app for Frame
+# Noa — Always-On Speech-to-Text for Frame AR Glasses
 
-Welcome to the Noa app repository! Built using Flutter, this repository also serves as a great example of how to build your own Frame apps.
+A Flutter app for [Brilliant Labs Frame](https://brilliant.xyz/products/frame) AR glasses that provides real-time, always-on speech-to-text transcription displayed directly on the Frame's heads-up display.
 
-<p style="text-align: center;"><a href="https://apps.apple.com/us/app/noa-for-frame/id6482980023"><img src="https://upload.wikimedia.org/wikipedia/commons/3/3c/Download_on_the_App_Store_Badge.svg" alt="Apple App Store badge" width="125"/></a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://play.google.com/store/apps/details?id=xyz.brilliant.noaflutter"><img src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg" alt="Google Play Store badge" width="125"/></a></p>
+## What it does
 
-![Noa screenshots](/docs/screenshots.png)
+Noa continuously listens through the Frame's microphone, transcribes speech in real-time using [Deepgram](https://deepgram.com/), and displays the text on the Frame's AR display with speaker diarization (color-coded by speaker).
+
+The app also supports a tap-to-query mode where tapping the glasses captures audio and a photo, sends them to an AI backend, and displays the response on the Frame.
 
 ## Getting started
 
-1. Ensure you have XCode and/or Android studio correctly set up for app development
+1. Ensure you have Xcode and/or Android Studio correctly set up for app development
 
-1. Install [Flutter](https://docs.flutter.dev/get-started/install) for VSCode
+1. Install [Flutter](https://docs.flutter.dev/get-started/install)
 
 1. Clone this repository
 
     ```sh
-    git clone https://github.com/brilliantlabsAR/noa-flutter.git
+    git clone https://github.com/Kajabi/noa-flutter.git
     cd noa-flutter
     ```
 
@@ -25,74 +27,19 @@ Welcome to the Noa app repository! Built using Flutter, this repository also ser
     flutter pub get
     ```
 
-1. Rename `.env.template` to `.env` and populate it with your own Google O-auth client IDs if desired
+1. Copy `.env.template` to `.env` and populate it with your API keys
 
-1. Connect your phone and run the app in release mode
+    ```sh
+    cp .env.template .env
+    ```
+
+1. Connect your phone and run the app
 
     ```sh
     flutter run --release
     ```
 
-## Regenerating the platform files
+## Hardware requirements
 
-Sometimes it may be necessary to regenerate the platform files. To do this, delete the `ios` and `android` folders, and run the following commands. Adjust for your own organization identifier accordingly:
-
-1. Delete the `ios` and `android` folders
-
-    ```sh
-    rm -rf android ios
-    ```
-
-1. Regenerate them
-
-    ```sh
-    flutter create --platforms ios --org xyz.brilliant --project-name noa .
-    flutter create --platforms android --org xyz.brilliant --project-name noa .
-    ```
-
-1. Regenerate the app icons
-
-    ```sh
-    flutter pub run flutter_launcher_icons
-    ```
-    
-1. Insert the following into `ios/Runner/Info.plist` to enable Bluetooth for iOS
-
-    ```
-    <dict>
-        <key>NSBluetoothAlwaysUsageDescription</key>
-        <string>This app always needs Bluetooth to function</string>
-        <key>NSBluetoothPeripheralUsageDescription</key>
-        <string>This app needs Bluetooth Peripheral to function</string>
-        <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-        <string>This app always needs location and when in use to function</string>
-        <key>NSLocationAlwaysUsageDescription</key>
-        <string>This app always needs location to function</string>
-        <key>NSLocationWhenInUseUsageDescription</key>
-        <string>This app needs location when in use to function</string>
-        <key>UIBackgroundModes</key>
-        <array>
-            <string>bluetooth-central</string>
-        </array>
-        ...
-    ```
-
-1. Insert the following into `ios/Runner/Info.plist to enable Google sign in for iOS
-
-    ```
-    <dict>
-        <key>CFBundleURLTypes</key>
-        <array>
-            <dict>
-                <key>CFBundleTypeRole</key>
-                <string>Editor</string>
-                <key>CFBundleURLSchemes</key>
-                <array>
-                    <string>com.googleusercontent.apps.178409912024-a779l8d62k0r94f8qg63bcs77j986htk</string>
-                </array>
-            </dict>
-        </array>
-        ...
-    ```
-
-    1. Finally, you may want to find and replace all occurrences of the string `xyz.brilliant` to your own reverse-domain bundle identifier
+- [Brilliant Labs Frame](https://brilliant.xyz/products/frame) AR glasses
+- iOS or Android device with Bluetooth LE support
